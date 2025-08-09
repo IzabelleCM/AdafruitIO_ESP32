@@ -1,0 +1,67 @@
+#include "WiFi.h"
+#include "AdafruitIO_WiFi.h"
+
+// Dados da sua conta Adafruit IO
+#define IO_USERNAME  "SeuUser"
+#define IO_KEY       "SuaKey"
+
+// Dados da sua rede Wi-Fi
+#define WIFI_SSID     "SuaRede"
+#define WIFI_PASS     "SuaSenha"
+#define LED_PIN       2                // LED no GPIO2
+
+// Instância do cliente Adafruit IO
+AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
+
+// Feed com o nome que você criou: Esp32LedBotao
+AdafruitIO_Feed *led = io.feed("Esp32LedBotao");
+
+// Função chamada quando o botão do dashboard for acionado
+void handleMessage(AdafruitIO_Data *data)
+{
+  Serial.print("Recebido do feed -> ");
+  Serial.println(data->value());
+
+  if (data->toInt() == 1)
+  {
+    digitalWrite(LED_PIN, HIGH);
+  }
+  else
+  {
+    digitalWrite(LED_PIN, LOW);
+  }
+}
+
+void setup()
+{
+  // Inicializa a porta serial
+  Serial.begin(115200);
+
+  // Configura o LED como saída
+  pinMode(LED_PIN, OUTPUT);
+
+  // Conecta ao Adafruit IO
+  Serial.print("Conectando ao Adafruit IO...");
+  io.connect();
+
+  // Define a função de callback
+  led->onMessage(handleMessage);
+
+  // Aguarda a conexão
+  while (io.status() < AIO_CONNECTED)
+  {
+    Serial.print(".");
+    delay(500);
+  }
+
+  Serial.println();
+  Serial.println("Conectado ao Adafruit IO!");
+
+  // Inscreve no feed para receber atualizações
+  led->get();
+}
+
+void loop()
+{
+  io.run();
+}
