@@ -1,0 +1,85 @@
+#include "WiFi.h"
+#include "AdafruitIO_WiFi.h"
+
+// Dados da sua conta Adafruit IO
+#define IO_USERNAME  "SeuUser"
+#define IO_KEY       "SuaKey"
+
+// Dados da sua rede Wi-Fi
+#define WIFI_SSID     "SuaRede"
+#define WIFI_PASS     "SuaSenha"
+
+#define LED 2          // LED interno no GPIO2
+#define botao 15       // Botão físico no GPIO15
+
+// Instância do cliente Adafruit IO
+AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
+
+// Feed com o botão online para o led físico: Esp32LedBotao
+AdafruitIO_Feed *led = io.feed("Esp32LedBotao");
+
+// Feed com o botão físico para o led online: Esp32Botao
+AdafruitIO_Feed *botaoFeed = io.feed("Esp32Botao");
+
+// Função chamada quando o botão do dashboard for acionado
+void handleMessage(AdafruitIO_Data *data)
+{
+  Serial.print("Recebido do feed -> ");
+  Serial.println(data->value());
+
+  if (data->toInt() == 1)
+  {
+    digitalWrite(LED, HIGH);
+  }
+  else
+  {
+    digitalWrite(LED, LOW);
+  }
+}
+
+void setup()
+{
+  // Inicializa a porta serial
+  Serial.begin(115200);
+
+  // Configura o LED como saída
+  pinMode(LED, OUTPUT);
+
+  // Configura o botão como entrada (sem pull-up)
+  pinMode(botao, INPUT);
+
+  // Conecta ao Adafruit IO
+  Serial.print("Conectando ao Adafruit IO...");
+  io.connect();
+
+  // Define a função de callback para o feed do LED
+  led->onMessage(handleMessage);
+
+  // Aguarda conexão com o Adafruit IO
+  while (io.status() < AIO_CONNECTED)
+  {
+    Serial.print(".");
+    delay(500);
+  }
+
+  Serial.println();
+  Serial.println("Conectado ao Adafruit IO!");
+
+  // Pega o valor atual do feed
+  led->get();
+}
+
+void loop()
+{
+  io.run();  // Mantém a conexão ativa com Adafruit IO
+
+  static int estadoAnterior = -1;
+  int estadoAtual = digitalRead(botao);
+
+  // Envia ao Adafruit IO somente se o estado mudou
+  if (estadoAtual != estadoAnterior)
+  {
+    botaoFeed->save(estadoAtual);  // Envia 0 ou 1
+    estadoAnterior = estadoAtual;
+  }
+}
